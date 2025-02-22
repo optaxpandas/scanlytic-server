@@ -1,0 +1,37 @@
+"""
+URL configuration for scanlytic project.
+
+The `urlpatterns` list routes URLs to views. For more information please see:
+https://docs.djangoproject.com/en/5.1/topics/http/urls/
+Examples:
+Function views
+1. Add an import:  from my_app import views
+2. Add a URL to urlpatterns:  path('', views.home, name='home')
+Class-based views
+1. Add an import:  from other_app.views import Home
+2. Add a URL to urlpatterns:  path('', Home.as_view(), name='home')
+Including another URLconf
+1. Import the include() function: from django.urls import include, path
+2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
+"""
+from django.contrib import admin
+from django.urls import path, include  # Import the include function
+from server import views  # Import the views from your app
+from django.conf import settings
+from django.conf.urls.static import static
+from server.views import TableView, QRView, SampleResponse, SignIn  # Import the views
+
+urlpatterns = [
+    path('admin/', admin.site.urls),
+    path('simple/', SampleResponse.as_view(), name='simple_response'),  # Add this line
+    path('sign-in', SignIn.as_view(), name='sign_in'),
+    path('refresh', views.refresh),
+    path('table', views.table),
+    path('qr', views.table),
+    path('qr/report', views.qrReport),
+    path('api/tables/', TableView.as_view(), name='table_list'),  # Add this line
+    path('api/qrs/', QRView.as_view(), name='qr_list'),  # Add this line
+]
+
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
