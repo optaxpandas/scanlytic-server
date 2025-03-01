@@ -24,7 +24,7 @@ class User(AbstractBaseUser):
 
 class UserAuth(models.Model):
     auth_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='auth')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='auths')
     access_token = models.TextField()  # Increase max length
     refresh_token = models.TextField()  # Increase max length
     created_on = models.DateTimeField(auto_now_add=True)
@@ -45,9 +45,9 @@ class Table(models.Model):
 
     table_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='tables')
-    image = models.ImageField(upload_to='table_images/', blank=True, null=True)
+    image = models.CharField(max_length=255, blank=False, null=False)
     file_type = models.CharField(max_length=10, choices=FILE_TYPES)
-    content = models.TextField()
+    content = models.CharField(max_length=255, null=False, blank=False)
     created_on = models.DateTimeField(auto_now_add=True)
     updated_on = models.DateTimeField(auto_now_add=True)
 

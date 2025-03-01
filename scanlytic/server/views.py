@@ -1,41 +1,24 @@
-from django.shortcuts import render
-from django.http import HttpResponse, JsonResponse
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import AuthenticationFailed
-from rest_framework_simplejwt.tokens import RefreshToken, AccessToken
+from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth.hashers import make_password
 from .models import Table, QR, User, UserAuth
-from .serializers import TableSerializer, QRSerializer, UserSerializer
+from .serializers import QRSerializer, UserSerializer, LoginSerializer
 from django.conf import settings
+from scanlytic.utils import JWT, Utils
 
-
-
-
-# Create your views here.
-class SampleResponse(APIView):
-    def get(self, request):
-        print('Request: \n', request.method)
-        return HttpResponse("This is a simple response")
-    
-    def post(self, request):
-        print('Request: ', request)
-        serializer = UserSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class SignIn(APIView):
     def post(self, request):
+        utils = Utils()
         try:
             serializer = UserSerializer(data=request.data)  # Use request.data instead of request.POST
             if serializer.is_valid():
                 email = serializer.validated_data['email']
                 if User.objects.filter(email=email).exists():
-                    response = createResponse(settings.MESSAGES['EMAIL_ALREADY_EXIST'])
+                    response = utils.createResponse(settings.MESSAGES['EMAIL_ALREADY_EXIST'])
                     return Response(response, status=status.HTTP_400_BAD_REQUEST)
                 
                 user_data = serializer.validated_data
@@ -58,55 +41,80 @@ class SignIn(APIView):
                     'access_token': access_token,
                 }, status=status.HTTP_201_CREATED)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
         except Exception as error:
-            response = createResponse(settings.MESSAGES['BAD_REQUEST'])
-            return Response(response, status=status.HTTP_400_BAD_REQUEST)
+            status_code = status.HTTP_403_FORBIDDEN if isinstance(error, AuthenticationFailed) else status.HTTP_500_INTERNAL_SERVER_ERROR
+            message = settings.MESSAGES['FORBIDDEN'] if isinstance(error, AuthenticationFailed) else settings.MESSAGES['INTERNAL_SERVER_ERROR']
+
+            response = utils.createResponse(message, str(error))
+            return Response(response, status=status_code)
+        
+class LogIn(APIView):
+    def get(self, request):
+        utils = Utils()
+        try:
+            serializer = LoginSerializer(data=request.data)
+            if serializer.is_valid():
+                email = serializer.validated_data['email']
+                password = serializer.validated_data['password']
+                
+                try:
+                    user = User.objects.get(email=email)
+                except User.DoesNotExist:
+                    response = utils.createResponse(settings.MESSAGES['INVALID_CREDENTIALS'])
+                    return Response(response, status=status.HTTP_400_BAD_REQUEST)
+                
+                if not user.check_password(password):
+                    response = utils.createResponse(settings.MESSAGES['INVALID_CREDENTIALS'])
+                    return Response(response, status=status.HTTP_400_BAD_REQUEST)
+                
+                refresh_token = RefreshToken.for_user(user)
+                refresh_token["user_id"] = str(user.user_id)
+                access_token = str(refresh_token.access_token)
+                
+                # Store tokens in UserAuth table
+                UserAuth.objects.create(
+                    user=user,
+                    access_token=access_token,
+                    refresh_token=str(refresh_token)
+                )
+
+                return Response({
+                    'user_id': user.user_id,
+                    'access_token': access_token,
+                }, status=status.HTTP_201_CREATED)
+            
+            return Response(utils.createResponse(serializer.errors), status=status.HTTP_400_BAD_REQUEST)
+        
+        except Exception as error:
+            print('ERROR IN LOGIN: ',error)
+            status_code = status.HTTP_403_FORBIDDEN if isinstance(error, AuthenticationFailed) else status.HTTP_500_INTERNAL_SERVER_ERROR
+            message = settings.MESSAGES['FORBIDDEN'] if isinstance(error, AuthenticationFailed) else settings.MESSAGES['INTERNAL_SERVER_ERROR']
+
+            response = utils.createResponse(message, str(error))
+            return Response(response, status=status_code)
 
 class Me(APIView):
     def get(self, request):
+        utils = Utils()
         try:
-            response = createResponse(settings.MESSAGES['FOUND_USER'], request.user)
+            jwt = JWT()
+            jwt.verifyToken(request)            
+            response = utils.createResponse(settings.MESSAGES['FOUND_USER'], request.user)
             return Response(response, status=status.HTTP_200_OK)
         except Exception as error:
             print('ERROR IN ME: ', error)
-            return Response()
+            status_code = status.HTTP_403_FORBIDDEN if isinstance(error, AuthenticationFailed) else status.HTTP_500_INTERNAL_SERVER_ERROR
+            message = settings.MESSAGES['FORBIDDEN'] if isinstance(error, AuthenticationFailed) else settings.MESSAGES['INTERNAL_SERVER_ERROR']
 
-def createResponse(message, data):
-    response = { 'message': message }
-    if(data):
-        response['data'] = data
-    
-    return response
-        
+            response = utils.createResponse(message)
+            return Response(response, status=status_code)
 
-def table(request):
-    return None
-
-def qr(request):
-    return None
-
-def qrReport(request):
-    return None
 
 def refresh(request):
     return None
 
-class TableView(APIView):
-    # permission_classes = [IsAuthenticated]  # Require authentication
-
-    def get(self, request):
-        tables = Table.objects.all()
-        serializer = TableSerializer(tables, many=True)
-        return Response(serializer.data)
-
-    def post(self, request):
-        serializer = TableSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-class QRView(APIView):
+class QR(APIView):
     def get(self, request):
         qrs = QR.objects.all()
         serializer = QRSerializer(qrs, many=True)
@@ -118,37 +126,3 @@ class QRView(APIView):
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-class JWT():
-    def verifyToken(request):
-        try:
-            auth_header = request.headers.get("Authorization")
-            print('auth header: ',auth_header)
-            if not auth_header:
-                raise AuthenticationFailed('Invalid Token')  # No token provided
-            
-            try:
-                token_type, access_token = auth_header.split()
-                if token_type.lower() != "bearer":
-                    raise AuthenticationFailed("Invalid token type")
-            except ValueError:
-                raise AuthenticationFailed("Invalid Authorization header format")
-            try:
-                decoded_token = AccessToken(access_token)  # Decode JWT
-                user_id = decoded_token["user_id"]
-                user = User.objects.get(user_id=user_id)
-            except User.DoesNotExist:
-                raise AuthenticationFailed("User not found")
-            except Exception as e:
-                raise AuthenticationFailed("Invalid or expired token")
-            
-            request.user = { 
-                'user_id': user.user_id,
-                'user_name': user.user_name,
-                'email': user.email,
-                'created_on': user.created_on,
-                'updated_on': user.updated_on 
-            }
-        except Exception as e:
-            print('Error in verifyToken: ', e)
-            raise AuthenticationFailed('Invalid or Expired Token')
