@@ -19,18 +19,19 @@ from django.urls import path, include  # Import the include function
 from server import views  # Import the views from your app
 from django.conf import settings
 from django.conf.urls.static import static
-from server.views import TableView, QRView, SampleResponse, SignIn  # Import the views
+from server.views import SignIn, LogIn, Me  # Import the views
+from table_extractor.views import TableExtractor, FetchTable
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('simple/', SampleResponse.as_view(), name='simple_response'),  # Add this line
     path('sign-in', SignIn.as_view(), name='sign_in'),
     path('refresh', views.refresh),
-    path('table', views.table),
-    path('qr', views.table),
-    path('qr/report', views.qrReport),
-    path('api/tables/', TableView.as_view(), name='table_list'),  # Add this line
-    path('api/qrs/', QRView.as_view(), name='qr_list'),  # Add this line
+    path('log-in', LogIn.as_view()),
+    path('me', Me.as_view()),
+    # path('qr', views.table),
+    # path('qr/report', views.qrReport),
+    path('table', TableExtractor.as_view(), name='table-extractor'),
+    path('table/<uuid:table_id>', FetchTable.as_view(), name='table-extractor'),
 ]
 
 if settings.DEBUG:

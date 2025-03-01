@@ -170,5 +170,20 @@ MESSAGES = {
     'INTERNAL_SERVER_ERROR': 'Internal Server Error',
     'BAD_REQUEST': 'Bad Request',
     'FOUND_USER': 'Found User',
-    'EMAIL_ALREADY_EXIST': 'Email Already Exists'
+    'EMAIL_ALREADY_EXIST': 'Email Already Exists',
+    'TABLE_EXTRACTED': 'Table Extracted successfully',
+    'INVALID_CREDENTIALS': 'Invalid credentials',
+    'FORBIDDEN': 'Unauthorized to perform this operation'
 }
+
+AZURE_DOCUMENT_INTELLIGENCE = {
+    'API_KEY': os.getenv('AZURE_API_KEY'),
+    'ENDPOINT': os.getenv('AZURE_ENDPOINT'),
+    'MODEL_ID': os.getenv('MODEL_ID')
+}
+
+FILE_TYPES = [
+    ('csv', 'CSV'),
+    ('xlsx', 'XLSX'),
+    ('copy', 'Copy'),
+]

@@ -1,5 +1,5 @@
 # Scanlytic
-This is a Django server developed using **Python 3.12.x** powered with **PostgreSQL** for the database
+This is a Django server developed using **Python 3.12.x** powered with **PostgreSQL** for the database & uses **Azure Document Intelligence** for converting the images into tables (.xlsx)
 
 ## Setup
 This server consists of 3 apps
@@ -15,19 +15,22 @@ This server consists of 3 apps
 Run `pip install -r requirements.txt`
 
 ### Clone This Repository
-`git clone https://github.com/optaxpandas/scanlytic-server.git`
+Clone this repository using `git clone https://github.com/optaxpandas/scanlytic-server.git`
 
 ### Environment Variables
 Copy the .env.example to .env
 
 
-| Variable Name       | Description                  | Value                    |
-| ------------------- | ---------------------------- | ------------------------ |
-| `DATABASE_NAME`     | Name of the database         | `your-database-name`     |
-| `DATABASE_USER`     | Database user                | `your-database-user`     |
-| `DATABASE_PASSWORD` | Password of the database     | `your-database-password` |
-| `HOST`              | Host address of the database | `localhost`              |
-| `PORT`              | Port of the database         | `5432`                   |
+| Variable Name       | Description                            | Value                    |
+| ------------------- | -------------------------------------- | ------------------------ |
+| `DATABASE_NAME`     | Name of the database                   | `your-database-name`     |
+| `DATABASE_USER`     | Database user                          | `your-database-user`     |
+| `DATABASE_PASSWORD` | Password of the database               | `your-database-password` |
+| `HOST`              | Host address of the database           | `localhost`              |
+| `PORT`              | Port of the database                   | `5432`                   |
+| `AZURE_API_KEY`     | API key for your Azure account         | `your-api-key`           |
+| `AZURE_ENDPOINT`    | Endpoint of your Azure project         | `your-endpoint`          |
+| `MODEL_ID`          | Model to use for Document Intelligence | `prebuilt-layout`        |
 
 
 ### Migrations
