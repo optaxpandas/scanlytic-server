@@ -58,10 +58,25 @@ class Table(models.Model):
         db_table = 'tables'  # Specify custom table name
 
 class QR(models.Model):
+    RISK_LEVEL = [
+        ('safe', 'Safe'),
+        ('critical', 'Critical'),
+        ('risky', 'Risky')
+    ]
     qr_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='qrs')
-    image = models.ImageField(upload_to='qr_images/', blank=False, null=False)
-    extracted_data = models.TextField()
+    image = models.CharField(max_length=255, blank=False, null=False)
+    url = models.CharField(max_length=255, blank=False, null=False, default='')
+    first_submission_date = models.DateTimeField(null=True, blank=True)
+    last_analysis_date = models.DateTimeField(null=True, blank=True)
+    reputation = models.IntegerField(default=0, blank=False, null=False)
+    total_malicious_votes = models.IntegerField(default=0, blank=False, null=False)
+    total_harmless_votes = models.IntegerField(default=0, blank=False, null=False)
+    malicious = models.IntegerField(default=0, blank=False, null=False)
+    suspicious = models.IntegerField(default=0, blank=False, null=False)
+    harmless = models.IntegerField(default=0, blank=False, null=False)
+    security_score = models.IntegerField(default=0, blank=False, null=False)
+    risk_level = models.CharField(default='safe', max_length=10, choices=RISK_LEVEL)
     created_on = models.DateTimeField(auto_now_add=True)
     updated_on = models.DateTimeField(auto_now_add=True)
 
@@ -70,19 +85,6 @@ class QR(models.Model):
 
     class Meta:
         db_table = 'qr'  # Specify custom table name
-
-class QRReport(models.Model):
-    qr_report_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    qr = models.ForeignKey(QR, on_delete=models.CASCADE, related_name='reports')
-    report_date = models.DateTimeField(auto_now_add=True)
-    created_on = models.DateTimeField(auto_now_add=True)
-    updated_on = models.DateTimeField(auto_now_add=True)
-
-    def __str__(self):
-        return f"Report for QR {self.qr.qr_id}"
-
-    class Meta:
-        db_table = 'qr_report'  # Specify custom table name
 
 @receiver(pre_save, sender=User)
 def update_related_user(sender, instance, **kwargs):

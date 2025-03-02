@@ -9,7 +9,7 @@ class TableSerializer(serializers.ModelSerializer):
 class QRSerializer(serializers.ModelSerializer):
     class Meta:
         model = QR
-        fields = ['qr_id', 'user', 'image', 'extracted_data', 'created_on', 'updated_on']
+        fields = ['qr_id', 'user', 'url', 'image', 'first_submission_date', 'last_analysis_date', 'reputation', 'total_malicious_votes', 'total_harmless_votes', 'malicious', 'suspicious', 'harmless', 'security_score', 'risk_level', 'created_on', 'updated_on']
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:

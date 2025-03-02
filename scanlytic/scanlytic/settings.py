@@ -45,7 +45,8 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework_simplejwt',
     'server',
-    'table_extractor',  # Add the new app here
+    'table_extractor',
+    'qr_analyzer'
 ]
 
 MIDDLEWARE = [
@@ -173,7 +174,9 @@ MESSAGES = {
     'EMAIL_ALREADY_EXIST': 'Email Already Exists',
     'TABLE_EXTRACTED': 'Table Extracted successfully',
     'INVALID_CREDENTIALS': 'Invalid credentials',
-    'FORBIDDEN': 'Unauthorized to perform this operation'
+    'FORBIDDEN': 'Unauthorized to perform this operation',
+    'REQUEST_COULD_NOT_BE_COMPLETED': 'Request could not be completed',
+    'REPORT_GENERATED': 'Report generated finally'
 }
 
 AZURE_DOCUMENT_INTELLIGENCE = {
@@ -187,3 +190,5 @@ FILE_TYPES = [
     ('xlsx', 'XLSX'),
     ('copy', 'Copy'),
 ]
+
+VIRUS_TOTAL = os.getenv('VIRUS_TOTAL_API_KEY')
