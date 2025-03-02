@@ -21,6 +21,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 from server.views import SignIn, LogIn, Me  # Import the views
 from table_extractor.views import TableExtractor, FetchTable
+from qr_analyzer.views import QRAnalyzer
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -28,7 +29,7 @@ urlpatterns = [
     path('refresh', views.refresh),
     path('log-in', LogIn.as_view()),
     path('me', Me.as_view()),
-    # path('qr', views.table),
+    path('qr', QRAnalyzer.as_view()),
     # path('qr/report', views.qrReport),
     path('table', TableExtractor.as_view(), name='table-extractor'),
     path('table/<uuid:table_id>', FetchTable.as_view(), name='table-extractor'),
