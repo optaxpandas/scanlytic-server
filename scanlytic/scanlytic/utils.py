@@ -18,7 +18,6 @@ class JWT():
     def verifyToken(request):
         try:
             auth_header = request.headers.get("Authorization")
-            print('auth header: ',auth_header)
             if not auth_header:
                 raise AuthenticationFailed('Invalid Token')  # No token provided
             

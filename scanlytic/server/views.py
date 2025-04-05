@@ -11,6 +11,7 @@ from scanlytic.utils import JWT, Utils
 
 
 class SignIn(APIView):
+    # Creates a new account
     def post(self, request):
         utils = Utils()
         try:
@@ -50,7 +51,8 @@ class SignIn(APIView):
             return Response(response, status=status_code)
         
 class LogIn(APIView):
-    def get(self, request):
+    # Allows user to login & grants access token to it
+    def post(self, request):
         utils = Utils()
         try:
             serializer = LoginSerializer(data=request.data)
@@ -95,12 +97,12 @@ class LogIn(APIView):
             return Response(response, status=status_code)
 
 class Me(APIView):
+    # Fetches the user's profile
     def get(self, request):
         utils = Utils()
         try:
-            jwt = JWT()
-            jwt.verifyToken(request)            
-            response = utils.createResponse(settings.MESSAGES['FOUND_USER'], request.user)
+            JWT.verifyToken(request)            
+            response = utils.createResponse(settings.MESSAGES['FOUND_USER'], data=request.user)
             return Response(response, status=status.HTTP_200_OK)
         except Exception as error:
             print('ERROR IN ME: ', error)
@@ -109,20 +111,22 @@ class Me(APIView):
 
             response = utils.createResponse(message)
             return Response(response, status=status_code)
+        
+class HealthCheck(APIView):
+    utils = Utils()
+    response = utils.createResponse('server is running', data={ 'status': 'ok'})
+    def get(self, request):
+        return Response(self.response)
+
+    def post(self, request):
+        return Response(self.response)
+
+    def put(self, request):
+        return Response(self.response)
+
+    def delete(self, request):
+        return Response(self.response)
 
 
 def refresh(request):
     return None
-
-class QR(APIView):
-    def get(self, request):
-        qrs = QR.objects.all()
-        serializer = QRSerializer(qrs, many=True)
-        return Response(serializer.data)
-
-    def post(self, request):
-        serializer = QRSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

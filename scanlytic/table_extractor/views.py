@@ -1,6 +1,6 @@
 from datetime import datetime
 import os
-import base64
+import csv
 import openpyxl
 from django.conf import settings
 from rest_framework.views import APIView
@@ -12,8 +12,12 @@ from scanlytic.utils import JWT, Utils
 from server.models import Table, User
 from server.serializers import TableSerializer, UploadTableSerializer
 from rest_framework.exceptions import AuthenticationFailed
+from azure.ai.documentintelligence.models import AnalyzeDocumentRequest
+from azure.core.credentials import AzureKeyCredential
+from azure.storage.blob import BlobServiceClient
 
 class TableExtractor(APIView):
+    # Get all the tables for the particular user
     def get(self, request):
         utils = Utils()
         try:
@@ -45,21 +49,25 @@ class TableExtractor(APIView):
             response = utils.createResponse(message, str(error))
             return Response(response, status=status_code)
         
+    # Extract a table out of an Image returns the URL of the final file
     def post(self, request):
         utils = Utils()
         try:
             JWT.verifyToken(request)
-            serializer = UploadTableSerializer(data=request.FILES)
+            serializer = UploadTableSerializer(data=request.data)
             if(serializer.is_valid()):
-                print("IN TABLE EXTRACTOR: ", serializer.validated_data['file'])
+                # image_path = serializer.validated_data['image_path']
+                # file_name = serializer.validated_data['name']
+
+                image_url = serializer.validated_data['image_url']
+                file_name = serializer.validated_data['file_name']
+                format = serializer.validated_data['format']
+
+                print(image_url)
+                print(file_name)
+                print('type: ',format)
+
                 
-                uploaded_file = request.FILES["file"]
-
-                image_path = os.path.join(settings.MEDIA_ROOT, uploaded_file.name)
-                with open(image_path, "wb+") as destination:
-                    for chunk in uploaded_file.chunks():
-                        destination.write(chunk)
-
                 # Initialize Azure Document Intelligence client
                 endpoint = settings.AZURE_DOCUMENT_INTELLIGENCE["ENDPOINT"]
                 api_key = settings.AZURE_DOCUMENT_INTELLIGENCE["API_KEY"]
@@ -67,9 +75,9 @@ class TableExtractor(APIView):
 
                 client = DocumentIntelligenceClient(endpoint, AzureKeyCredential(api_key))
 
-                with open(image_path, "rb") as file_data:
-                    poller = client.begin_analyze_document(model_id, file_data)
-                    result = poller.result()
+                # with open(image_path, "rb") as file_data:
+                poller = client.begin_analyze_document(model_id, AnalyzeDocumentRequest(url_source=image_url))
+                result = poller.result()
 
                 # Extract tables and structure the data
                 extracted_tables = []
@@ -85,37 +93,60 @@ class TableExtractor(APIView):
 
                 # Generate Excel File
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                excel_filename = f'{timestamp}_{os.path.splitext(uploaded_file.name)[0]}.xlsx'
-                excel_path = os.path.join(settings.MEDIA_ROOT, excel_filename)
+                filename = f'{timestamp}_{file_name}.{format}'
+                excel_path = os.path.join(settings.MEDIA_ROOT, filename)
                 wb = openpyxl.Workbook()
                 ws = wb.active
                 ws.title = "Extracted Table"
 
-                # Write table data into Excel
-                for table in extracted_tables:
-                    for row in table:
-                        ws.append(row)  # Append row to Excel file
-                    ws.append([])  # Empty row between tables
+                if(format == "xlsx"):
+                    # Create an excel file
+                    wb = openpyxl.Workbook()
+                    ws = wb.active
+                    ws.title = "Extracted Table"
 
-                wb.save(excel_path)
+                    for table in extracted_tables:
+                        for row in table:
+                            ws.append(row)
+                        ws.append([])  # Empty row for separation
 
-                # Convert Excel file to Base64
-                with open(excel_path, "rb") as excel_file:
-                    encoded_string = base64.b64encode(excel_file.read()).decode("utf-8")
+                    wb.save(excel_path)
+
+                elif(format == "csv"):
+                    # Create a csv file
+                    with open(excel_path, mode="w", newline="", encoding="utf-8") as file:
+                        writer = csv.writer(file)
+                        for table in extracted_tables:
+                            writer.writerows(table)
+                            writer.writerow([])  # Empty row for separation
+
+
+                # Upload Excel file to Azure Blob Storage
+                blob_service_client = BlobServiceClient.from_connection_string(settings.AZURE_STORAGE_CONNECTION_STRING)
+                container_client = blob_service_client.get_container_client(settings.AZURE_CONTAINER_NAME)
+                blob_client = container_client.get_blob_client(filename)
                 
-                print('=======================================')
-                print('base 64: \n',encoded_string)
-                print('=======================================')
+                with open(excel_path, "rb") as data:
+                    blob_client.upload_blob(data, overwrite=True)
+
+
+                # Construct the file URL
+                excel_url = f"https://{settings.AZURE_ACCOUNT_NAME}.blob.core.windows.net/{settings.AZURE_CONTAINER_NAME}/{filename}"
+
+                if os.path.exists(excel_path):
+                    os.remove(excel_path)
+                    print(f"Deleted local file: {excel_path}")
+                
 
                 table = Table.objects.create(
                     user_id = request.user['user_id'],
-                    image = image_path,
+                    image = image_url,
                     file_type = 'xlsx',
-                    content = excel_path
+                    content = excel_url
                 )
                 
-                # Return Base64 response
-                return Response(utils.createResponse(message=settings.MESSAGES['TABLE_EXTRACTED'], data={ 'file': encoded_string, 'file_name': excel_filename }), status=status.HTTP_200_OK)
+                # Return File URL
+                return Response(utils.createResponse(message=settings.MESSAGES['TABLE_EXTRACTED'], data={ 'file': excel_url, 'file_name': filename }), status=status.HTTP_200_OK)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         except Exception as error:
             print('Error: ',error)
@@ -127,6 +158,7 @@ class TableExtractor(APIView):
         
 
 class FetchTable(APIView):
+    # Fetch a particular table by its ID
     def get(self, request, table_id):
         utils = Utils()
         try:
