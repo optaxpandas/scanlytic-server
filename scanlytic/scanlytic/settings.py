@@ -28,9 +28,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-bsqo1rp5crnr$msfy7n(cv8uc-jr8f@wu2(e+m8yw5gtfmursx'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv('DEBUG', 'false').lower() == 'true'
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    '*',
+]
 
 
 # Application definition
@@ -152,8 +154,8 @@ REST_FRAMEWORK = {
 from datetime import timedelta
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=120),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
+    'ACCESS_TOKEN_LIFETIME': timedelta(days=365),  
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=365),
     'ROTATE_REFRESH_TOKENS': False,
     'BLACKLIST_AFTER_ROTATION': True,
     'ALGORITHM': 'HS256',
@@ -176,7 +178,7 @@ MESSAGES = {
     'INVALID_CREDENTIALS': 'Invalid credentials',
     'FORBIDDEN': 'Unauthorized to perform this operation',
     'REQUEST_COULD_NOT_BE_COMPLETED': 'Request could not be completed',
-    'REPORT_GENERATED': 'Report generated finally'
+    'REPORT_GENERATED': 'Report generated successfully'
 }
 
 AZURE_DOCUMENT_INTELLIGENCE = {
@@ -191,4 +193,10 @@ FILE_TYPES = [
     ('copy', 'Copy'),
 ]
 
+FILE_EXTENSIONS = ['.jpg', '.jpeg', '.tiff', 'heif', '.png', '.pdf']
+
 VIRUS_TOTAL = os.getenv('VIRUS_TOTAL_API_KEY')
+
+AZURE_ACCOUNT_NAME = os.getenv('AZURE_ACCOUNT_NAME')
+AZURE_CONTAINER_NAME = os.getenv('AZURE_CONTAINER_NAME')
+AZURE_STORAGE_CONNECTION_STRING = os.getenv('AZURE_STORAGE_CONNECTION_STRING')

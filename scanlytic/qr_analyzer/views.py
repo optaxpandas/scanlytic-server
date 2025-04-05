@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.exceptions import AuthenticationFailed
 from server.models import QR
-from server.serializers import UploadTableSerializer, QRSerializer
+from server.serializers import UploadTableSerializer, QRSerializer, UploadQrSerializer
 from django.conf import settings
 from scanlytic.utils import JWT, Utils
 import virustotal_python
@@ -14,26 +14,23 @@ import os
 from datetime import datetime
 from django.utils.timezone import make_aware
 
-# Create your views here.
+
 class QRAnalyzer(APIView):
+    # Extracts the QR details to determine insights
     def get(self, request):
         utils = Utils()
         try:
             JWT.verifyToken(request)
-            serializer = UploadTableSerializer(data=request.FILES)
+            serializer = UploadQrSerializer(data=request.GET)
             if(serializer.is_valid()):
-                fileName = request.FILES['file']
-                print(serializer.data)
-                # fileName = serializer.data.get('file')
-                image_path = os.path.join(settings.MEDIA_ROOT, fileName.name)
-                with open(image_path, "wb+") as destination:
-                    for chunk in fileName.chunks():
-                        destination.write(chunk)
+                data = serializer.validated_data
+                imageUrl = data['image_url']
+                imagePath = data['path']
                 
                 # read the QRCODE image
-                image = cv2.imread(image_path)
+                image = cv2.imread(imagePath)
                 detector = cv2.QRCodeDetector()
-                url, vertices_array, binary_qrcode = detector.detectAndDecode(image)
+                url, _, _ = detector.detectAndDecode(image)
                 print('URL: ', url)
 
                 with virustotal_python.Virustotal(settings.VIRUS_TOTAL) as vtotal:
@@ -89,7 +86,7 @@ class QRAnalyzer(APIView):
 
                     data = QR.objects.create(
                         user_id = str(request.user['user_id']),
-                        image = image_path,
+                        image = imageUrl,
                         url = url,
                         first_submission_date = first_submission_date,
                         last_analysis_date = last_analysis_date,
@@ -105,7 +102,8 @@ class QRAnalyzer(APIView):
 
                     data = QRSerializer(data).data
 
-                    print('report data: ',report_data)
+                    if(os.path.exists(imagePath)):
+                        os.remove(imagePath)
 
                     return Response(utils.createResponse(message=settings.MESSAGES['REPORT_GENERATED'], data=data), status=status.HTTP_200_OK)
             else:
@@ -117,6 +115,29 @@ class QRAnalyzer(APIView):
 
         except Exception as error:
             print('ERROR: ',error)
+            status_code = status.HTTP_403_FORBIDDEN if isinstance(error, AuthenticationFailed) else status.HTTP_500_INTERNAL_SERVER_ERROR
+            message = settings.MESSAGES['FORBIDDEN'] if isinstance(error, AuthenticationFailed) else settings.MESSAGES['INTERNAL_SERVER_ERROR']
+
+            response = utils.createResponse(message, str(error))
+            return Response(response, status=status_code)
+
+
+class QrHistory(APIView):
+    # Fetches the searched history for QRs for the particular user
+    def get(self, request):
+        utils = Utils()
+        try:
+            JWT.verifyToken(request) 
+            print(request.user)
+            user_id = request.user["user_id"]
+            data = QR.objects.filter(user_id=user_id)
+
+            data = QRSerializer(data, many=True).data
+
+            response = utils.createResponse(message='Qrs Found', data=data)
+            return Response(response, status=status.HTTP_200_OK)
+        except Exception as error:
+            print('Error: ',error)
             status_code = status.HTTP_403_FORBIDDEN if isinstance(error, AuthenticationFailed) else status.HTTP_500_INTERNAL_SERVER_ERROR
             message = settings.MESSAGES['FORBIDDEN'] if isinstance(error, AuthenticationFailed) else settings.MESSAGES['INTERNAL_SERVER_ERROR']
 

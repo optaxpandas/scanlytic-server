@@ -19,11 +19,12 @@ from django.urls import path, include  # Import the include function
 from server import views  # Import the views from your app
 from django.conf import settings
 from django.conf.urls.static import static
-from server.views import SignIn, LogIn, Me  # Import the views
+from server.views import SignIn, LogIn, Me, HealthCheck  # Import the views
 from table_extractor.views import TableExtractor, FetchTable
-from qr_analyzer.views import QRAnalyzer
+from qr_analyzer.views import QRAnalyzer, QrHistory
 
 urlpatterns = [
+    path('', HealthCheck.as_view()),
     path('admin/', admin.site.urls),
     path('sign-in', SignIn.as_view(), name='sign_in'),
     path('refresh', views.refresh),
@@ -33,6 +34,7 @@ urlpatterns = [
     # path('qr/report', views.qrReport),
     path('table', TableExtractor.as_view(), name='table-extractor'),
     path('table/<uuid:table_id>', FetchTable.as_view(), name='table-extractor'),
+    path('qr/history', QrHistory.as_view())
 ]
 
 if settings.DEBUG:
